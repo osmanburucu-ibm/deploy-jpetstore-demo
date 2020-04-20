@@ -1,0 +1,17 @@
+---
+- hosts: localhost
+#  gather_facts: yes
+  tasks:
+
+  - name: include urbancode variables
+    include_vars:
+      dir: ../deploy-urbancode-deploy/group_vars
+  - name: Include JPetStore related vars
+    include_vars:
+      dir: vars
+
+  - name: import JPetStore component versions
+    debug:
+        msg: Hello world! "{{ item }}" NNNN "{{ item }}"# not required. The customized message that is printed. If omitted, prints a generic message.
+
+    loop: "{{ demo.components }}"

@@ -1,0 +1,43 @@
+---
+# Demo related variables 
+
+demo:
+    name: JPetStore
+    artifact_binaries: artifact_binaries_JPetStore.zip
+    source_directory: "{{ all_source_directory }}/demos"
+    target_directory: /home
+    components:
+        - JPetStore-APP
+        - JPetStore-DB
+        - JPetStore-WEB
+    db:
+        name: jpetstore
+        user: jpetstore
+        password: jppwd
+    environments:
+        sit:
+            non_ssl_port: 8085
+            ssl_port: 8445            
+        uat:
+            non_ssl_port: 8086
+            ssl_port: 8446        
+
+
+# apache tomcat 
+# https://archive.apache.org/dist/tomcat/tomcat-7/v7.0.42/bin/apache-tomcat-7.0.42.tar.gz
+a_t_version:
+    major: 7
+    middle: 0
+    minor: 42
+      
+a_t:
+    file_name: "apache-tomcat-{{ a_t_version.major }}.{{ a_t_version.middle }}.{{ a_t_version.minor }}"
+    file_extension: tar.gz
+    target_directory: /opt/webservers/
+    tomcat_users_file: tomcat-users.xml
+    standard_ports:
+        non_ssl_port: 8080
+        ssl_port: 8443
+
+a_t_download_url_part: "dist/tomcat/tomcat-{{ a_t_version.major }}"
+a_t_download_url: "https://archive.apache.org/{{ a_t_download_url_part }}/v{{ a_t_version.major }}.{{ a_t_version.middle }}.{{ a_t_version.minor }}/bin/{{ a_t.file_name }}.{{ a_t.file_extension }}"
