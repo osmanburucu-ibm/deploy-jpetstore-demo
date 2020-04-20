@@ -1,5 +1,0 @@
-[ucd_server]
-cos7l.local.net ansible_host=192.168.62.178
- 
-[db_server]
-cos7l.local.net ansible_host=192.168.62.178
