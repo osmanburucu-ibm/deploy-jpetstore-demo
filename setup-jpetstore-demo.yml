@@ -1,38 +1,72 @@
 ---
+# create databases for JPetStore Environments 
+- hosts: db_server
+  become: yes
+  gather_facts: yes
+  pre_tasks:
+
+  - name: Include JPetStore related vars
+    include_vars:
+      file: vars/jpetstore_demo_variables.yml
+
+  roles: 
+    - role: geerlingguy.mysql
+
+  post_tasks:
+    - name: create jpetstore databaes
+      mysql_db:
+        name: "{{ jpetstore_db.name }}_{{ item.key}}" 
+        encoding: utf8
+        collation: utf8_bin
+        state: present
+      loop: "{{ lookup('dict', demo_target_environment_vars) }}"
+    
+    - name: create jpetstore user
+      mysql_user:
+        name: "{{ jpetstore_db.user }}"
+        password: "{{ jpetstore_db.password }}"
+        host: "localhost"
+
+    - name: add grant to  jpetstore User
+      mysql_user: 
+        name: "{{ jpetstore_db.user }}" 
+        append_privs: yes
+        priv: "{{ jpetstore_db.name }}_{{ item.key}}.*:ALL,GRANT" 
+        host: "%" 
+        state: present
+      loop:  "{{ lookup('dict', demo_target_environment_vars) }}"
+
 - hosts: ucd_server
 #  gather_facts: yes
   become: yes
   tasks:
 
-  - name: include urbancode variables
-    include_vars:
-      dir: ../deploy-urbancode-deploy/group_vars
   - name: Include JPetStore related vars
     include_vars:
-      dir: vars
+      file: vars/jpetstore_demo_variables.yml
 
   - name: create a download directory if not exists
     file:
-      path: "{{ download_dir }}/{{ demo.name }}"
+      path: "{{ download_dir }}/{{ demo_name }}"
       state: directory
       recurse: yes
 
 # Component artifacts: /home/JPetStore/shared/.... -> available from zip file
   - name: download JPetStore-Artifacts pack
     copy:
-      src: "{{ demo.source_directory }}/{{ demo.name }}/{{ demo.artifact_binaries }}"
-      dest: "{{ download_dir }}/{{ demo.name }}"
+      src: "{{ demo_source_directory }}/{{ demo_name }}/{{ demo_artifact_binaries }}"
+      dest: "{{ download_dir }}/{{ demo_name }}"
 
   - name: unzip JPetStore-Artifacts pack
     unarchive:
-      src: "{{ download_dir }}/{{ demo.name }}/{{ demo.artifact_binaries }}"
-      dest: "{{ demo.target_directory }}"
-      creates: "{{ demo.target_directory }}/{{ demo.name }}"
+      src: "{{ download_dir }}/{{ demo_name }}/{{ demo_artifact_binaries }}"
+      dest: "{{ demo_target_directory }}"
+      creates: "{{ demo_target_directory }}/{{ demo_name }}"
       remote_src: yes
 
   - name: set owner of JPetStore artifacts directory to running user
     file:
-      path: "{{ demo.target_directory }}/{{ demo.name }}"
+      path: "{{ demo_target_directory }}/{{ demo_name }}"
       state: directory
       recurse: yes
       owner: "{{ ansible_ssh_user }}"
@@ -40,51 +74,56 @@
 
   - name: create webserver directory if not exists
     file:
-      path: "{{ a_t.target_directory }}"
+      path: "{{ at_target_directory }}"
       state: directory
       recurse: yes
 
 # download  apache tomcat for the environments sit and uat 
   - name: download apache tomcat
     get_url: 
-      url: "{{ a_t_download_url }}"
+      url: "{{ at_download_url }}"
       dest: "{{ download_dir }}"
+
+  # - name: download JPetStore-Artifacts pack
+  #   copy:
+  #     src: "{{ at_source_directory }}/{{ at_file_name }}.{{ at_file_extension }}"
+  #     dest: "{{ download_dir }}"
 
 # unzip archive and copy it to destination directories 
   - name: unzip apache tomcat archive
     unarchive:
-      src: "{{ download_dir }}/{{ a_t.file_name }}.{{ a_t.file_extension }}"
+      src: "{{ download_dir }}/{{ at_file_name }}.{{ at_file_extension }}"
       dest: "{{ download_dir }}"
-      creates: "{{ download_dir }}/{{ a_t.file_name }}"
+      creates: "{{ download_dir }}/{{ at_file_name }}"
       remote_src: yes
 
   - name: copy to target directory
     copy: 
-      src: "{{ download_dir }}/{{ a_t.file_name }}/"
-      dest: "{{ a_t.target_directory }}/{{ item.key}}-{{ a_t.file_name }}"
+      src: "{{ download_dir }}/{{ at_file_name }}/"
+      dest: "{{ at_target_directory }}/{{ item.key}}-{{ at_file_name }}"
       remote_src: yes
-    loop: "{{ lookup('dict', demo.environments) }}"
+    loop: "{{ lookup('dict', demo_target_environment_vars) }}"
 
   - name: change non ssl ports in server.xml
     replace:
-      path: "{{ a_t.target_directory }}/{{ item.key }}-{{ a_t.file_name }}/conf/server.xml"
-      regexp: "{{a_t.standard_ports.non_ssl_port }}" 
+      path: "{{ at_target_directory }}/{{ item.key }}-{{ at_file_name }}/conf/server.xml"
+      regexp: "{{at_standard_ports.non_ssl_port }}" 
       replace: "{{ item.value.non_ssl_port }}" 
-    loop: "{{ lookup('dict', demo.environments) }}"
+    loop: "{{ lookup('dict', demo_target_environment_vars) }}"
 
   - name: change ssl ports in server.xml
     replace:
-      path: "{{ a_t.target_directory }}/{{ item.key }}-{{ a_t.file_name }}/conf/server.xml"
-      regexp: "{{a_t.standard_ports.ssl_port }}" 
+      path: "{{ at_target_directory }}/{{ item.key }}-{{ at_file_name }}/conf/server.xml"
+      regexp: "{{at_standard_ports.ssl_port }}" 
       replace: "{{ item.value.ssl_port }}" 
-    loop: "{{ lookup('dict', demo.environments) }}"
+    loop: "{{ lookup('dict', demo_target_environment_vars) }}"
 
 
   - name: copy tomcatusers
     copy:
-      src: "{{ demo.source_directory }}/{{ demo.name }}/{{ a_t.tomcat_users_file }}"
-      dest: "{{ a_t.target_directory }}/{{ item.key}}-{{ a_t.file_name }}/conf"
-    loop: "{{ lookup('dict', demo.environments) }}"
+      src: "{{ demo_source_directory }}/{{ demo_name }}/{{ at_tomcat_users_file }}"
+      dest: "{{ at_target_directory }}/{{ item.key}}-{{ at_file_name }}/conf"
+    loop: "{{ lookup('dict', demo_target_environment_vars) }}"
 
 # create resource tree
 #TODO: check first if exists... then create
@@ -94,7 +133,7 @@
         user: "{{ ucds_admin_user }}"
         password: "{{ ucds_initial_admin_pwd }}"
         method: PUT
-        body: ' { "name" : "{{ demo.name }}-Demo-Lab" }'
+        body: ' { "name" : "{{ demo_name }}-Demo-Lab" }'
         force_basic_auth: yes
         body_format: json
         validate_certs: no
@@ -105,11 +144,11 @@
         user: "{{ ucds_admin_user }}"
         password: "{{ ucds_initial_admin_pwd }}"
         method: PUT
-        body: ' { "name" : "{{ item.key | upper}}" ,"parent" : "\/{{ demo.name }}-Demo-Lab" }'
+        body: ' { "name" : "{{ item.key | upper}}" ,"parent" : "\/{{ demo_name }}-Demo-Lab" }'
         force_basic_auth: yes
         body_format: json
         validate_certs: no
-    loop: "{{ lookup('dict', demo.environments) }}"
+    loop: "{{ lookup('dict', demo_target_environment_vars) }}"
 
   - name: add agent to environment
     uri:
@@ -117,18 +156,19 @@
         user: "{{ ucds_admin_user }}"
         password: "{{ ucds_initial_admin_pwd }}"
         method: PUT
-        body: ' { "agent" : "{{ ucd_agent_name }}" ,"parent" : "\/{{ demo.name }}-Demo-Lab\/{{ item.key | upper}}" }'
+        body: ' { "agent" : "{{ ucd_agent_name }}" ,"parent" : "\/{{ demo_name }}-Demo-Lab\/{{ item.key | upper}}" }'
         force_basic_auth: yes
         body_format: json
         validate_certs: no
-    loop: "{{ lookup('dict', demo.environments) }}"
+    loop: "{{ lookup('dict', demo_target_environment_vars) }}"
 
 #TODO: check if app exists if yes use update artifact setting if no just import with create
+#BUG: Fails with 7.1.1 UCDS
 # import application 
   - name: import JPetStore demo application
-    shell: 'curl -v -k -u  "{{ ucds_admin_user }}:{{ ucds_initial_admin_pwd }}" -X POST -H "Content-Type: multipart/form-data" -F "file=@{{ demo.name }}.json" "https://{{ ucd_server_hostname }}:{{ install_server_web_https_port }}/rest/deploy/application/import?upgradeType=USE_EXISTING_IF_EXISTS&compTempUpgradeType=USE_EXISTING_IF_EXISTS&processUpgradeType=USE_EXISTING_IF_EXISTS&resourceTemplateUpgradeType=USE_EXISTING_IF_EXISTS&appTempUpgradeType=USE_EXISTING_IF_EXISTS"'
+    shell: 'curl -v -k -u  "{{ ucds_admin_user }}:{{ ucds_initial_admin_pwd }}" -X POST -H "Content-Type: multipart/form-data" -F "file=@{{ demo_name }}.json" "https://{{ ucd_server_hostname }}:{{ install_server_web_https_port }}/rest/deploy/application/import?upgradeType=USE_EXISTING_IF_EXISTS&compTempUpgradeType=USE_EXISTING_IF_EXISTS&processUpgradeType=USE_EXISTING_IF_EXISTS&resourceTemplateUpgradeType=USE_EXISTING_IF_EXISTS&appTempUpgradeType=USE_EXISTING_IF_EXISTS"'
     args:  
-      chdir: "{{ demo.target_directory }}/{{ demo.name }}"
+      chdir: "{{ demo_target_directory }}/{{ demo_name }}"
 
 # import component versions 
   - name: import JPetStore component versions
@@ -141,7 +181,7 @@
         force_basic_auth: yes
         body_format: json
         validate_certs: no
-    loop: "{{ demo.components }}"
+    loop: "{{ demo_components }}"
 
   
   - name: add components to agents
@@ -150,13 +190,13 @@
         user: "{{ ucds_admin_user }}"
         password: "{{ ucds_initial_admin_pwd }}"
         method: PUT
-        body: ' { "component" : "{{ item[1] }}" ,"parent" : "\/{{ demo.name }}-Demo-Lab\/{{ item.0.key | upper}}\/{{ ucd_agent_name }}" }'
+        body: ' { "component" : "{{ item[1] }}" ,"parent" : "\/{{ demo_name }}-Demo-Lab\/{{ item.0.key | upper}}\/{{ ucd_agent_name }}" }'
         force_basic_auth: yes
         body_format: json
         validate_certs: no
     with_nested: 
-      - "{{ lookup('dict', demo.environments) }}"
-      - "{{ demo.components }}"
+      - "{{ lookup('dict', demo_target_environment_vars) }}"
+      - "{{ demo_components }}"
 
   - name: set JPetStore Firewalld settings
     firewalld:
@@ -164,7 +204,7 @@
       permanent: yes
       immediate: yes
       state: enabled
-    loop: "{{ lookup('dict', demo.environments) }}"
+    loop: "{{ lookup('dict', demo_target_environment_vars) }}"
     when: ansible_facts['os_family'] == "RedHat" 
 
   - name: set JPetStore UFW settings
@@ -173,43 +213,7 @@
       proto: tcp
       rule: allow
       state: enabled
-    loop: "{{ lookup('dict', demo.environments) }}"
+    loop: "{{ lookup('dict', demo_target_environment_vars) }}"
     when: ansible_facts['os_family'] == "Ubuntu" 
 
-# create databases for JPetStore Environments 
-- hosts: db_server
-  become: yes
-  gather_facts: yes
-  pre_tasks:
-
-  - name: Include JPetStore related vars
-    include_vars:
-      file: vars/jpetstore_demo_variables.yml
-
-  roles: 
-    - role: robertdebock.mysql
-
-  post_tasks:
-    - name: create jpetstore databaes
-      mysql_db:
-        name: "{{ demo.db.name }}_{{ item.key}}" 
-        encoding: utf8
-        collation: utf8_bin
-        state: present
-      loop: "{{ lookup('dict', demo.environments) }}"
-    
-    - name: create jpetstore user
-      mysql_user:
-        name: "{{ demo.db.user }}"
-        password: "{{ demo.db.password }}"
-        host: "localhost"
-
-    - name: add grant to  jpetstore User
-      mysql_user: 
-        name: "{{ demo.db.user }}" 
-        append_privs: yes
-        priv: "{{ demo.db.name }}_{{ item.key}}.*:ALL,GRANT" 
-        host: "%" 
-        state: present
-      loop:  "{{ lookup('dict', demo.environments) }}"
 

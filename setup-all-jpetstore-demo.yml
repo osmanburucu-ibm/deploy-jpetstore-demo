@@ -1,0 +1,4 @@
+---
+    - import_playbook: ../deploy-urbancode-deploy/setup-ucd-plugins.yml
+    - import_playbook: setup-jpetstore-demo.yml
+ 
