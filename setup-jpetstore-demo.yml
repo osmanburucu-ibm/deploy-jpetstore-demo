@@ -9,6 +9,13 @@
     include_vars:
       file: vars/jpetstore_demo_variables.yml
 
+  - name: Include Urbancode Deploy related vars
+    include_vars:
+      dir: ../deploy-urbancode-deploy/group_vars
+      extensions:
+        - 'yaml'
+        - 'yml'
+        
   roles: 
     - role: geerlingguy.mysql
 
