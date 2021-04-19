@@ -13,9 +13,11 @@ git clone https://github.com/osmanburucu-ibm/deploy-jpetstore-demo.git
 
 ~~~~
 
-Edit deploy-urbancode-deploy/hosts to set the hostname and ip of your ucd server and run the setup-all-ucdsa.yml to setup your UCD environment.
+Edit deploy-urbancode-deploy/hosts to set the hostname and ip of your ucd server and run the setup-all-ucdsa.yml to setup your UCD environment if it is not set up. 
 
 Edit the variables to point to the location where the artifacts are stored.
+
+Most of the variables are reused from the deploy-urbancode-deploy project!
 
 Then run the playbook from here to setup the JPetStore Demo
 
