@@ -24,8 +24,8 @@ demo_target_environment_vars:
         non_ssl_port: 8086
         ssl_port: 8446
     dev:
-        non_ssl_port: 8085
-        ssl_port: 8445    
+        non_ssl_port: 8084
+        ssl_port: 8444
 
 
 # for JpetStore demo
